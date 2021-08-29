@@ -12,45 +12,46 @@ var EventEmitter = require('events').EventEmitter;
 var dgram        = require('dgram');
 var packet       = require('packet');
 
-
 class TSL3 extends EventEmitter {
-
-	constructor () {
-        super()
-		this.parser = packet.createParser();
-		this.server = dgram.createSocket('udp4');
-		this.parser.packet('tsl', 'b8{x1, b7 => address},b8{x2, b2 => brightness, b1 => tally4, b1 => tally3, b1 => tally2, b1 => tally1 }, b8[16] => label');
-    }
-
 	listenUDP(port) {
 
 		var self = this;
-
-		this.server.on('error', (err) => {
+	
+		self.port = port;
+		self.parser = packet.createParser();
+		self.server = dgram.createSocket('udp4');
+		self.parser.packet('tsl', 'b8{x1, b7 => address},b8{x2, b2 => brightness, b1 => tally4, b1 => tally3, b1 => tally2, b1 => tally1 }, b8[16] => label');
+	
+		self.server.on('error', (err) => {
 			debug('error',err);
 			throw err;
-			this.server.close();
+			self.server.close();
 		});
 	
-		this.server.on('message', (msg, rinfo) => {
-			this.parser.extract("tsl", function (res) {
-				console.log(res.label + ' ' + res.sender);
-				res.label = new Buffer(res.label).toString();
-				res.sender = rinfo.address;
-				self.emit('message', res);
-			});
-			this.parser.parse(msg);
+		self.server.on('message', (msg, rinfo) => {
+			this.processTally(msg,rinfo);
 		});
 	
-		this.server.on('listening', () => {
-			var address = this.server.address();
+		self.server.on('listening', () => {
+			var address = self.server.address();
 			console.log(`server listening ${address.address}:${address.port}`);
 		});
 	
-		this.server.bind(port);
+		self.server.bind(self.port);
 
-		return this.server;
+		return self;
 	
+	}
+
+	processTally(msg, rinfo) {
+		var self = this;
+
+		self.parser.extract("tsl", function (res) {
+			res.label = new Buffer(res.label).toString();
+			res.sender = rinfo.address;
+			self.emit('message', res);
+		});
+		self.parser.parse(msg);
 	}
 }
 
@@ -85,6 +86,8 @@ class TSL5 extends EventEmitter {
             debug('server error: ', err);
             throw err;
         });
+
+		return this;
     }
 
     processTally(data,rinfo) {
@@ -210,6 +213,6 @@ function tslumd(port) {
 
 util.inherits(tslumd, EventEmitter);
 
-exports.TSL3 = TSL3;
 exports.TSL5 = TSL5;
 exports.tslumd = tslumd;
+exports.TSL3 = TSL3;
