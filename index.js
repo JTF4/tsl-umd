@@ -12,19 +12,7 @@ var EventEmitter = require('events').EventEmitter;
 var dgram        = require('dgram');
 var packet       = require('packet');
 
-class TSL extends EventEmitter {
-    constructor () {
-        super()
-        //Message Format
-        this._PBC     = 0 //offset
-        this._VER     = 2
-        this._FLAGS   = 3
-        this._SCREEN  = 4
-        this._INDEX   = 6
-        this._CONTROL = 8
-        this._LENGTH  = 10
-    }
-
+class TSL3 extends EventEmitter {
 	tslumd(port) {
 
 		var self = this;
@@ -57,13 +45,27 @@ class TSL extends EventEmitter {
 		self.server.bind(self.port);
 	
 	}
+}
 
-    ListenV5UDP(port) {
+class TSL5 extends EventEmitter {
+    constructor () {
+        super()
+        //Message Format
+        this._PBC     = 0 //offset
+        this._VER     = 2
+        this._FLAGS   = 3
+        this._SCREEN  = 4
+        this._INDEX   = 6
+        this._CONTROL = 8
+        this._LENGTH  = 10
+    }
+
+    listenUDP(port) {
         this.server = dgram.createSocket('udp4')
         this.server.bind(port)
 
         this.server.on('message',(msg, rinfo) => {
-            this.processTallyV5(msg,rinfo)
+            this.processTally(msg,rinfo)
             debug('Message recieved: ', msg)
         })
 
@@ -78,7 +80,7 @@ class TSL extends EventEmitter {
         });
     }
 
-    processTallyV5(data,rinfo) {
+    processTally(data,rinfo) {
         let buf = Buffer.from(data)
         let tally = { display: {} }
 
@@ -102,7 +104,7 @@ class TSL extends EventEmitter {
         this.emit('message',tally)
     }
 
-    constructPacketV5(tally) {
+    constructPacket(tally) {
         let bufUMD = Buffer.alloc(12)
 
         if (!tally.index) { 
@@ -141,12 +143,12 @@ class TSL extends EventEmitter {
         return bufUMD
     }
 
-    sendTallyV5UDP(ip, port, tally) {
+    sendTallyUDP(ip, port, tally) {
         try {		
             if (!ip | !port | !tally){
                 throw 'Missing Parameter from call sendTallyUDP()'
             }
-            let msg = this.constructPacketV5(tally)
+            let msg = this.constructPacket(tally)
     
             let client = dgram.createSocket('udp4');
             
@@ -165,6 +167,6 @@ class TSL extends EventEmitter {
     }
 }
 
-util.inherits(TSL, EventEmitter);
+util.inherits(TSL5, TSL3, EventEmitter);
 
-exports = module.exports = TSL;
+exports = module.exports = {TSL3, TSL5};
