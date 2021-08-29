@@ -13,6 +13,7 @@ var dgram        = require('dgram');
 var packet       = require('packet');
 
 class TSL3 extends EventEmitter {
+
 	listenUDP(port) {
 
 		var self = this;
@@ -177,6 +178,7 @@ class TSL5 extends EventEmitter {
     }
 }
 
+// Legacy
 
 function tslumd(port) {
 
