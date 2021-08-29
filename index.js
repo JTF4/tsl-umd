@@ -12,37 +12,44 @@ var EventEmitter = require('events').EventEmitter;
 var dgram        = require('dgram');
 var packet       = require('packet');
 
+
 class TSL3 extends EventEmitter {
-	tslumd(port) {
+
+	constructor () {
+        super()
+		this.parser = packet.createParser();
+		this.server = dgram.createSocket('udp4');
+		this.parser.packet('tsl', 'b8{x1, b7 => address},b8{x2, b2 => brightness, b1 => tally4, b1 => tally3, b1 => tally2, b1 => tally1 }, b8[16] => label');
+    }
+
+	listenUDP(port) {
 
 		var self = this;
-	
-		self.port = port;
-		self.parser = packet.createParser();
-		self.server = dgram.createSocket('udp4');
-		self.parser.packet('tsl', 'b8{x1, b7 => address},b8{x2, b2 => brightness, b1 => tally4, b1 => tally3, b1 => tally2, b1 => tally1 }, b8[16] => label');
-	
-		self.server.on('error', (err) => {
+
+		this.server.on('error', (err) => {
 			debug('error',err);
 			throw err;
-			self.server.close();
+			this.server.close();
 		});
 	
-		self.server.on('message', (msg, rinfo) => {
-			self.parser.extract("tsl", function (res) {
+		this.server.on('message', (msg, rinfo) => {
+			this.parser.extract("tsl", function (res) {
+				console.log(res.label + ' ' + res.sender);
 				res.label = new Buffer(res.label).toString();
 				res.sender = rinfo.address;
 				self.emit('message', res);
 			});
-			self.parser.parse(msg);
+			this.parser.parse(msg);
 		});
 	
-		self.server.on('listening', () => {
-			var address = self.server.address();
+		this.server.on('listening', () => {
+			var address = this.server.address();
 			console.log(`server listening ${address.address}:${address.port}`);
 		});
 	
-		self.server.bind(self.port);
+		this.server.bind(port);
+
+		return this.server;
 	
 	}
 }
@@ -167,40 +174,42 @@ class TSL5 extends EventEmitter {
     }
 }
 
-//Legacy support
+
 function tslumd(port) {
 
-	var self = this;
-
-	self.port = port;
-	self.parser = packet.createParser();
-	self.server = dgram.createSocket('udp4');
-	self.parser.packet('tsl', 'b8{x1, b7 => address},b8{x2, b2 => brightness, b1 => tally4, b1 => tally3, b1 => tally2, b1 => tally1 }, b8[16] => label');
-
-	self.server.on('error', (err) => {
-		debug('error',err);
-		throw err;
-		self.server.close();
-	});
-
-	self.server.on('message', (msg, rinfo) => {
-		self.parser.extract("tsl", function (res) {
-			res.label = new Buffer(res.label).toString();
-			res.sender = rinfo.address;
-			self.emit('message', res);
+		var self = this;
+	
+		self.port = port;
+		self.parser = packet.createParser();
+		self.server = dgram.createSocket('udp4');
+		self.parser.packet('tsl', 'b8{x1, b7 => address},b8{x2, b2 => brightness, b1 => tally4, b1 => tally3, b1 => tally2, b1 => tally1 }, b8[16] => label');
+	
+		self.server.on('error', (err) => {
+			debug('error',err);
+			throw err;
+			self.server.close();
 		});
-		self.parser.parse(msg);
-	});
+	
+		self.server.on('message', (msg, rinfo) => {
+			self.parser.extract("tsl", function (res) {
+				res.label = new Buffer(res.label).toString();
+				res.sender = rinfo.address;
+				self.emit('message', res);
+			});
+			self.parser.parse(msg);
+		});
+	
+		self.server.on('listening', () => {
+			var address = self.server.address();
+			console.log(`server listening ${address.address}:${address.port}`);
+		});
+	
+		self.server.bind(self.port);
+	
+	}
 
-	self.server.on('listening', () => {
-		var address = self.server.address();
-		console.log(`server listening ${address.address}:${address.port}`);
-	});
+util.inherits(tslumd, EventEmitter);
 
-	self.server.bind(self.port);
-
-}
-
-util.inherits(TSL5, TSL3, tslumd, EventEmitter);
-
-exports = module.exports = {TSL3, TSL5, tslumd};
+exports.TSL3 = TSL3;
+exports.TSL5 = TSL5;
+exports.tslumd = tslumd;
